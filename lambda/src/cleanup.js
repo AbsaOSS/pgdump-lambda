@@ -12,13 +12,10 @@
 //     See the License for the specific language governing permissions and
 // limitations under the License.
 
-const {SecretsManager} = require('@aws-sdk/client-secrets-manager');
+const fs = require('fs');
 
-async function getSecrets(event) {
-    let ssm = new SecretsManager({region: event.REGION});
-
-    let output = await ssm.getSecretValue({SecretId: event.SECRET});
-    return JSON.parse(output.SecretString);
+async function deleteFile(filePath) {
+    await fs.promises.unlink(filePath);
 }
 
-module.exports = getSecrets;
+module.exports = deleteFile;

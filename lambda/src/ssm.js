@@ -12,13 +12,15 @@
 //     See the License for the specific language governing permissions and
 // limitations under the License.
 
-const {SecretsManager} = require('@aws-sdk/client-secrets-manager');
+const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
 
-async function getSecrets(event) {
-    let ssm = new SecretsManager({region: event.REGION});
+async function getParameter(event) {
+    const ssm = new SSMClient({ region: event.REGION });
 
-    let output = await ssm.getSecretValue({SecretId: event.SECRET});
-    return JSON.parse(output.SecretString);
+    const command = new GetParameterCommand({ Name: event.SECRET, WithDecryption: true });
+    const output = await ssm.send(command);
+    
+    return JSON.parse(output.Parameter.Value);
 }
 
-module.exports = getSecrets;
+module.exports = getParameter;

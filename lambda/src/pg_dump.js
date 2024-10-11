@@ -1,27 +1,33 @@
+// Copyright 2024 ABSA Group Limited
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+//     You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+//     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//     See the License for the specific language governing permissions and
+// limitations under the License.
 
-const { exec } = require('child_process')
+const {exec} = require('child_process')
 const path = require('path');
+const fs = require('fs');
 const binPath = path.join(__dirname, '../bin');
 const pgDumpPath = path.join(binPath, 'pg_dump');
-const fs = require('fs');
 
+async function pgdump(event, secret, tmpDirectory) {
+    let date = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '').replace(' ', '_');
+    let format = event.PLAIN ? '.sql' : '.backup';
+    let args = event.PLAIN ? '' : '-Fc ';
+    let envArgs = process.env.PGDUMP_ARGS || '';
+    let fileName = `${secret.database}-${date}${format}`;
+    let filePath = path.join(tmpDirectory, `${secret.database}-${date}${format}`);
 
-async function pgdump(event, secret) {
-
-    return new Promise(async (resolve,reject) => {
-
-        // set file name, file path
-        let date = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '').replace(' ','_');
-        
-        // optional plain parameter to output plain sql file
-        let format = event.PLAIN? '.sql' : '.backup';
-        let args = event.PLAIN? '' : '-Fc ';
-        
-        let fileName = `${secret.database}-${date}${format}`;
-        let filePath = path.join('/tmp', `${secret.database}-${date}${format}`)
-
-        // spawn child process to execute pg_dump
-        let child = exec(`${pgDumpPath} ${args}> ${filePath}`,{
+    try {
+        await execPromise(`${pgDumpPath} ${args} ${envArgs}> ${filePath}`, {
             env: {
                 LD_LIBRARY_PATH: binPath,
                 PGDATABASE: secret.database,
@@ -31,56 +37,39 @@ async function pgdump(event, secret) {
             }
         });
 
-        // catch error output
-        child.stderr.on('data', data => {
-            error = data;
-        });
+        let stats = await fs.promises.stat(filePath);
+        let fileSize = stats.size;
 
-        // when child process exits
-        child.on('close', code => {
-
-            if(code !== 0){
-                return reject(new Error(`pg_dump failed: ${error}`));
+        if (event.PLAIN) {
+            let stdout = await execPromise(`tail -n 3 ${filePath}`);
+            if (stdout.toLowerCase().includes('postgresql database dump complete')) {
+                return { fileName, filePath, fileSize };
+            } else {
+                throw new Error('pg_dump failed, unexpected error');
             }
-
-            if(event.PLAIN){
-
-                // check the dump complete message at end of file
-                exec(`tail -n 3 ${filePath}`,  (error, stdout, stderr) => {
-                    
-                    if(stdout.toLowerCase().includes('postgresql database dump complete')){
-                        // correct output, if expected string is found at the last set of lines of plaintext file 
-                        return resolve({
-                            fileName,filePath
-                        });
-                    }else{
-                        return reject(new Error(`pg_dump failed, unexpected error`));
-                    }
-
-                });
-
-            }else{
-
-                // check the PGDMP string to test whether pgdump wrote the correct file
-                exec(`head -n 1 ${filePath}`,  (error, stdout, stderr) => {
-                    
-                    if(stdout.startsWith('PGDMP')){
-                        // correct output, if expected string is found at the first line of the file 
-                        return resolve({
-                            fileName,filePath
-                        });
-                    }else{
-                        return reject(new Error(`pg_dump failed, unexpected error`));
-                    }
-
-                });
-                
+        } else {
+            let stdout = await execPromise(`head -n 1 ${filePath}`);
+            if (stdout.startsWith('PGDMP')) {
+                return { fileName, filePath, fileSize };
+            } else {
+                throw new Error('pg_dump failed, unexpected error');
             }
+        }
+    } catch (error) {
+        throw new Error(`pg_dump failed: ${JSON.stringify(error)}`);
+    }
+}
 
+function execPromise(command, options) {
+    return new Promise((resolve, reject) => {
+        exec(command, options, (error, stdout, stderr) => {
+            if (error) {
+                reject(stderr);
+            } else {
+                resolve(stdout);
+            }
         });
-
     });
-
 }
 
 module.exports = pgdump;
