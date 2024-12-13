@@ -60,6 +60,7 @@ variable "backup_schedules" {
     db_credentials_parameter = string
     bucket_object_id_prefix = string
     secret_source = string
+    extra_args = optional(string)
   }))
 }
 

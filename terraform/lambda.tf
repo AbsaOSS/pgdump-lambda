@@ -32,7 +32,7 @@ resource "aws_lambda_function" "pgdump_lambda" {
 
   environment {
     variables = {
-      "PGDUMP_ARGS" = "-n config"
+      "PGDUMP_ARGS" = ""
     }
   }
 }

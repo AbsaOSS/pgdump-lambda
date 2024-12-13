@@ -29,11 +29,14 @@ function validateEventFields(event, requiredFields) {
 exports.handler = async (event) => {
     try {
         validateEventFields(event, ['S3_BUCKET', 'REGION', 'SECRET']);
-        
-        let dbSecrets = event.SECRET_SOURCE === 'SECRETS_MANAGER' 
-            ? await getSecrets(event) 
+
+        let dbSecrets = event.SECRET_SOURCE === 'SECRETS_MANAGER'
+            ? await getSecrets(event)
             : await getParameter(event);
-        
+        let { database, host, username } = dbSecrets;
+
+        console.info(`Dumping database ${database} from host ${host} using ${username}`);
+
         let tmpDirectory = '/tmp'
         let dumpResult = await pgDump(event, dbSecrets, tmpDirectory);
         console.info(`Dumped database to ${dumpResult.filePath} with size ${dumpResult.fileSize}`);
@@ -49,6 +52,6 @@ exports.handler = async (event) => {
         };
     } catch (error) {
         console.log('err', error);
-        return error;
+        throw new Error(JSON.stringify(error));
     }
 };

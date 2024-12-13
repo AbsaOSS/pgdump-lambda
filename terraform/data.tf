@@ -17,10 +17,6 @@ data "aws_subnets" "subnets" {
     name   = "vpc-id"
     values = [var.vpc_id]
   }
-
-  tags = {
-    SubnetType = "data"
-  }
 }
 
 data "aws_caller_identity" "current" {}

@@ -31,6 +31,7 @@ resource "aws_cloudwatch_event_target" "run_lambda_every_day_at_10pm" {
   "REGION": "af-south-1",
   "S3_BUCKET": "${aws_s3_bucket.lambda_bucket.id}",
   "PREFIX": "${each.value.bucket_object_id_prefix}",
+  ${each.value.extra_args != null ? "\"EXTRA_ARGS\": \"${each.value.extra_args}\"," : ""}
   "SECRET_SOURCE": "${each.value.secret_source}"
 }
 JSON
