@@ -21,42 +21,41 @@ const pgDumpPath = path.join(binPath, 'pg_dump');
 async function pgdump(event, secret, tmpDirectory) {
     let date = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '').replace(' ', '_');
     let format = event.PLAIN ? '.sql' : '.backup';
-    let args = event.PLAIN ? '' : '-Fc ';
+    let args = event.PLAIN ? '' : '-Fc';
+    if (event.EXTRA_ARGS) args += (' ' + event.EXTRA_ARGS);
+
     let envArgs = process.env.PGDUMP_ARGS || '';
     let fileName = `${secret.database}-${date}${format}`;
     let filePath = path.join(tmpDirectory, `${secret.database}-${date}${format}`);
 
-    try {
-        await execPromise(`${pgDumpPath} ${args} ${envArgs}> ${filePath}`, {
-            env: {
-                LD_LIBRARY_PATH: binPath,
-                PGDATABASE: secret.database,
-                PGUSER: secret.username,
-                PGPASSWORD: secret.password,
-                PGHOST: secret.host,
-            }
-        });
-
-        let stats = await fs.promises.stat(filePath);
-        let fileSize = stats.size;
-
-        if (event.PLAIN) {
-            let stdout = await execPromise(`tail -n 3 ${filePath}`);
-            if (stdout.toLowerCase().includes('postgresql database dump complete')) {
-                return { fileName, filePath, fileSize };
-            } else {
-                throw new Error('pg_dump failed, unexpected error');
-            }
-        } else {
-            let stdout = await execPromise(`head -n 1 ${filePath}`);
-            if (stdout.startsWith('PGDMP')) {
-                return { fileName, filePath, fileSize };
-            } else {
-                throw new Error('pg_dump failed, unexpected error');
-            }
+    let command = `${pgDumpPath} ${args} ${envArgs}> ${filePath}`
+    await execPromise(command, {
+        env: {
+            LD_LIBRARY_PATH: binPath,
+            PGDATABASE: secret.database,
+            PGUSER: secret.username,
+            PGPASSWORD: secret.password,
+            PGHOST: secret.host,
         }
-    } catch (error) {
-        throw new Error(`pg_dump failed: ${JSON.stringify(error)}`);
+    });
+
+    let stats = await fs.promises.stat(filePath);
+    let fileSize = stats.size;
+
+    if (event.PLAIN) {
+        let stdout = await execPromise(`tail -n 3 ${filePath}`);
+        if (stdout.toLowerCase().includes('postgresql database dump complete')) {
+            return { fileName, filePath, fileSize };
+        } else {
+                throw new Error('pg_dump failed, unexpected error');
+        }
+    } else {
+        let stdout = await execPromise(`head -n 1 ${filePath}`);
+        if (stdout.startsWith('PGDMP')) {
+            return { fileName, filePath, fileSize };
+        } else {
+                throw new Error('pg_dump failed, unexpected error');
+        }
     }
 }
 

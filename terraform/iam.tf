@@ -25,15 +25,7 @@ resource "aws_iam_role" "iam_for_lambda" {
         "Service": "lambda.amazonaws.com"
       },
       "Effect": "Allow",
-      "Sid": "",
-      "Condition": {
-        "StringEquals": {
-          "AWS:SourceAccount": "${data.aws_caller_identity.current.account_id}"
-        },
-        "ArnEquals": {
-          "AWS:SourceArn": "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${data.aws_ssm_parameter.account_alias.value}-${var.project_name}"
-        }
-      }
+      "Sid": ""
     }
   ]
 }
