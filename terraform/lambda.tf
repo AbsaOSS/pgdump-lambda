@@ -17,10 +17,10 @@ resource "aws_lambda_function" "pgdump_lambda" {
   function_name = "${data.aws_ssm_parameter.account_alias.value}-${var.project_name}"
   role          = aws_iam_role.iam_for_lambda.arn
   handler       = "index.handler"
-  runtime       = "nodejs18.x"
+  runtime       = "nodejs22.x"
   timeout       = 900
   source_code_hash = filebase64sha256(data.archive_file.lambda_pgdump_archive.output_path)
-  memory_size   = 4096
+  memory_size   = 8192
   ephemeral_storage {
     size = 8096
   }
